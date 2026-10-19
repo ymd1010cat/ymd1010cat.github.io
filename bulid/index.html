@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Download</title>
+<style>
+  /* 极简基础样式，纯原生 */
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+  }
+
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* 顶部下拉选择区 */
+  .selector-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 30px;
+  }
+
+  /* 原生下拉框 */
+  select {
+    font-size: 24px;
+    padding: 2px;
+    margin: 0 5px;
+    cursor: pointer;
+    max-width: 100%;
+  }
+
+  /* 
+   * 发布说明展示区 
+   * 基础容器样式
+   */
+  .release-notes-container {
+    width: 100%;
+    background-color: #fafafa;
+    border: 1px solid #ccc;
+    padding: 20px;
+    box-sizing: border-box;
+    margin-bottom: 30px;
+    display: none; /* 默认隐藏，有数据时显示 */
+  }
+
+  /* 
+   * 针对 Markdown 渲染出的 HTML 标签做最基础的排版
+   * 保持浏览器的默认视觉效果，不添加花哨修饰
+   */
+  .release-notes-container h1,
+  .release-notes-container h2,
+  .release-notes-container h3,
+  .release-notes-container h4 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+  .release-notes-container h1 { font-size: 24px; }
+  .release-notes-container h2 { font-size: 20px; }
+  .release-notes-container h3 { font-size: 18px; }
+
+  .release-notes-container p {
+    margin: 10px 0;
+    line-height: 1.6;
+  }
+
+  .release-notes-container ul,
+  .release-notes-container ol {
+    margin: 10px 0;
+    padding-left: 30px;
+  }
+
+  .release-notes-container li {
+    margin-bottom: 5px;
+  }
+
+  .release-notes-container a {
+    color: #0056b3;
+    text-decoration: underline;
+  }
+
+  /* 代码块基础样式 */
+  .release-notes-container pre {
+    background-color: #eee;
+    padding: 10px;
+    overflow-x: auto;
+    border: 1px solid #ddd;
+    margin: 10px 0;
+  }
+  .release-notes-container code {
+    font-family: monospace;
+    background-color: #eee;
+    padding: 2px 4px;
+  }
+  .release-notes-container pre code {
+    background-color: transparent;
+    padding: 0;
+  }
+
+  /* 下载按钮区 */
+  .action-line {
+    margin-top: 10px;
+  }
+
+  .download-btn {
+    display: inline-block;
+    font-size: 18px;
+    padding: 8px 24px;
+    cursor: pointer;
+    text-decoration: none;
+    color: #000;
+    border: 1px solid #000;
+    background-color: #f0f0f0;
+    text-align: center;
+  }
+
+  .download-btn:active {
+    background-color: #e0e0e0;
+  }
+
+  /* 底部深色栏 */
+  footer {
+    background-color: #2b2d30;
+    color: #a0a0a0;
+    text-align: center;
+    padding: 30px 20px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .footer-links {
+    margin-bottom: 15px;
+  }
+
+  .footer-links a {
+    color: #6bb5ff;
+    text-decoration: none;
+    margin: 0 15px;
+  }
+
+  .footer-links a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+  <main>
+    <!-- 选择区 -->
+    <div class="selector-line">
+      <span>Download</span>
+      <select id="releaseSelect" disabled>
+        <option>加载中...</option>
+      </select>
+      <span>on</span>
+      <select id="assetSelect" disabled>
+        <option>请先选择版本</option>
+      </select>
+    </div>
+
+    <!-- 发布说明区（Markdown 渲染容器） -->
+    <div class="release-notes-container" id="notesContainer"></div>
+
+    <!-- 下载按钮 -->
+    <div class="action-line">
+      <a href="#" id="downloadBtn" class="download-btn" target="_blank" rel="noopener noreferrer" style="display:none;">
+        下载文件
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-links">
+      <a href="https://github.com/ymd1010cat/CC-Tweaked-Program-Storage" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>
+      <a href="https://github.com/ymd1010cat/CC-Tweaked-Program-Storage/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+    </div>
+    <div>
+      &copy; 2026 ymd1010cat. Licensed under MIT.
+    </div>
+  </footer>
+
+<!-- 引入极轻量的 marked.js 用于解析 Markdown 格式 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script>
+/* ============================================================
+   配置与 DOM 引用
+   ============================================================ */
+const REPO_API = 'https://api.github.com/repos/ymd1010cat/CC-Tweaked-Program-Storage/releases';
+
+const releaseSelect  = document.getElementById('releaseSelect');
+const assetSelect    = document.getElementById('assetSelect');
+const notesContainer = document.getElementById('notesContainer');
+const downloadBtn    = document.getElementById('downloadBtn');
+
+// 全局变量，用于保存拉取到的数据
+let allReleases = [];
+
+/* ============================================================
+   核心逻辑：获取 Releases
+   ============================================================ */
+async function loadReleases() {
+  try {
+    const response = await fetch(REPO_API);
+    
+    if (!response.ok) {
+      throw new Error(`GitHub API 请求失败: ${response.status}`);
+    }
+    
+    allReleases = await response.json();
+    
+    if (allReleases.length === 0) {
+      releaseSelect.innerHTML = '<option>暂无发布版本</option>';
+      return;
+    }
+
+    // 填充版本下拉框
+    releaseSelect.innerHTML = '';
+    releaseSelect.disabled = false;
+    
+    allReleases.forEach((release, index) => {
+      const opt = document.createElement('option');
+      opt.value = index;
+      // 优先显示 Release 的 name，如果没有则显示 tag_name
+      opt.textContent = release.name || release.tag_name;
+      releaseSelect.appendChild(opt);
+    });
+
+    // 默认加载第一个（最新）版本的内容
+    updateContent();
+
+    // 监听版本切换
+    releaseSelect.addEventListener('change', updateContent);
+    // 监听文件切换
+    assetSelect.addEventListener('change', updateDownloadButton);
+
+  } catch (error) {
+    console.error('获取 Releases 失败:', error);
+    releaseSelect.innerHTML = '<option>加载失败，请刷新</option>';
+  }
+}
+
+/* ============================================================
+   更新内容：根据选中的版本，更新说明和附件下拉框
+   ============================================================ */
+function updateContent() {
+  const releaseIndex = releaseSelect.value;
+  const release = allReleases[releaseIndex];
+  
+  if (!release) return;
+
+  // 1. 更新发布说明（使用 marked 将 Markdown 转化为 HTML）
+  if (release.body && release.body.trim() !== '') {
+    // 解析 Markdown 字符串，并插入到 DOM 中
+    notesContainer.innerHTML = marked.parse(release.body);
+    notesContainer.style.display = 'block';
+  } else {
+    notesContainer.textContent = '该版本暂无发布说明。';
+    notesContainer.style.display = 'block';
+  }
+
+  // 2. 更新附件下拉框
+  assetSelect.innerHTML = '';
+  
+  if (release.assets && release.assets.length > 0) {
+    assetSelect.disabled = false;
+    
+    release.assets.forEach((asset, index) => {
+      const opt = document.createElement('option');
+      opt.value = index;
+      
+      // 格式化文件大小
+      let sizeStr = '';
+      if (asset.size > 1024 * 1024) {
+        sizeStr = `(${(asset.size / (1024 * 1024)).toFixed(1)} MB)`;
+      } else if (asset.size > 1024) {
+        sizeStr = `(${(asset.size / 1024).toFixed(1)} KB)`;
+      } else {
+        sizeStr = `(${asset.size} B)`;
+      }
+      
+      opt.textContent = `${asset.name} ${sizeStr}`;
+      assetSelect.appendChild(opt);
+    });
+
+    // 默认选中第一个文件并更新下载按钮
+    assetSelect.selectedIndex = 0;
+    updateDownloadButton();
+
+  } else {
+    // 无附件情况
+    assetSelect.disabled = true;
+    const opt = document.createElement('option');
+    opt.textContent = '该版本无附件包';
+    assetSelect.appendChild(opt);
+    
+    downloadBtn.style.display = 'none';
+    downloadBtn.href = '#';
+  }
+}
+
+/* ============================================================
+   更新下载按钮的链接
+   ============================================================ */
+function updateDownloadButton() {
+  const releaseIndex = releaseSelect.value;
+  const assetIndex = assetSelect.value;
+  
+  const release = allReleases[releaseIndex];
+  
+  if (release && release.assets && release.assets.length > 0) {
+    const asset = release.assets[assetIndex];
+    downloadBtn.href = asset.browser_download_url;
+    downloadBtn.style.display = 'inline-block';
+  } else {
+    downloadBtn.style.display = 'none';
+  }
+}
+
+// 启动拉取
+loadReleases();
+</script>
+
+</body>
+</html>

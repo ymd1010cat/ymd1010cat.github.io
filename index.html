@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project Index</title>
+<style>
+  /* 极简基础样式，纯原生 */
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+  }
+
+  .container {
+    max-width: 600px;
+    margin: 60px auto;
+    padding: 0 20px;
+  }
+
+  h1 {
+    font-size: 28px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+
+  /* 状态提示文字 */
+  .status {
+    color: #666;
+    font-size: 15px;
+    margin-top: 20px;
+  }
+
+  ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    background-color: #fafafa;
+  }
+
+  /* 目录名称显示 */
+  .dir-name {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+
+  /* 基础链接样式 */
+  a {
+    color: #0000ee;
+    text-decoration: underline;
+    font-size: 15px;
+  }
+
+  a:hover {
+    color: #000000;
+  }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>项目索引</h1>
+    <div id="statusMsg" class="status">正在加载目录...</div>
+    <ul id="dirList"></ul>
+  </div>
+
+<script>
+/* ============================================================
+   配置与 DOM 引用
+   ============================================================ */
+// 更新为你的用户主页仓库
+const REPO_OWNER = 'ymd1010cat';
+const REPO_NAME = 'ymd1010cat.github.io';
+const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/`;
+
+const statusMsg = document.getElementById('statusMsg');
+const dirList = document.getElementById('dirList');
+
+/* ============================================================
+   核心逻辑：自动获取目录并渲染
+   ============================================================ */
+async function loadDirectories() {
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) {
+      throw new Error(`GitHub API 请求失败: ${response.status}`);
+    }
+    
+    const items = await response.json();
+    
+    // 过滤出文件夹 (type === 'dir')
+    // 排除以点开头的隐藏文件夹（如 .github, .vscode 等）
+    const dirs = items.filter(item => 
+      item.type === 'dir' && !item.name.startsWith('.')
+    );
+
+    if (dirs.length === 0) {
+      statusMsg.textContent = '根目录下暂无项目文件夹。';
+      return;
+    }
+
+    // 隐藏加载提示
+    statusMsg.style.display = 'none';
+
+    // 渲染列表
+    let html = '';
+    dirs.forEach(dir => {
+      // 将文件夹名称格式化得更易读（例如用空格替换连字符）
+      const displayName = dir.name.replace(/-/g, ' ');
+      
+      html += `
+        <li>
+          <div class="dir-name">${displayName}</div>
+          <!-- 链接指向对应的子目录 -->
+          <a href="./${dir.name}/">前往 ./${dir.name}/</a>
+        </li>
+      `;
+    });
+
+    dirList.innerHTML = html;
+
+  } catch (error) {
+    console.error('获取目录失败:', error);
+    statusMsg.textContent = '加载失败，请刷新页面重试。';
+  }
+}
+
+// 页面加载后执行
+loadDirectories();
+</script>
+
+</body>
+</html>
